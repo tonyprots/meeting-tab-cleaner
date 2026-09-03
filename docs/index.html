@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Политика конфиденциальности — Чистильщик вкладок видеовстреч</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b5bdb'/%3E%3Crect x='7' y='11' width='12' height='10' rx='2.5' fill='%23fff'/%3E%3Cpath d='M21 14.2l4-2.4v8.4l-4-2.4z' fill='%23fff'/%3E%3Ccircle cx='23' cy='23' r='6' fill='%23fff'/%3E%3Cpath d='M20.9 20.9l4.2 4.2M25.1 20.9l-4.2 4.2' stroke='%23e03131' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; --ink:#16181d; --soft:#5f6672; --line:#e3e6ea; --accent:#3b5bdb; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 56px 24px 90px; max-width: 46rem;
+    background: #fff; color: var(--ink);
+    font: 400 17px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 30px; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 6px; }
+  .date { color: var(--soft); margin: 0 0 40px; font-size: 15px; }
+  h2 { font-size: 21px; font-weight: 600; margin: 40px 0 12px; letter-spacing: -0.01em; }
+  p, li { margin: 0 0 13px; }
+  ul { padding-left: 22px; }
+  code { font: 400 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace; background: #f3f5f7; padding: 2px 5px; border-radius: 4px; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 56px 0 40px; }
+  a { color: var(--accent); }
+  .lang { color: var(--soft); font-size: 14px; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 14px; }
+  strong { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Политика конфиденциальности</h1>
+<p class="date">Расширение «Чистильщик вкладок видеовстреч» (Meeting Tab Cleaner). Редакция от 4 сентября 2026 года.</p>
+
+<h2>Коротко</h2>
+<p>Расширение не собирает никаких данных, не отправляет их никуда и не делает
+ни одного сетевого запроса. У него нет ни сервера, ни аналитики, ни аккаунтов.</p>
+
+<h2>Какие данные обрабатываются</h2>
+<p>Чтобы закрыть вкладку, оставшуюся после встречи, расширение обращается
+к адресам открытых вкладок на сайтах двенадцати сервисов видеосвязи. Для пяти
+из них — Яндекс Телемост, Zoom, Microsoft&nbsp;Teams, Cisco&nbsp;Webex,
+GoTo&nbsp;Meeting — доступ запрашивается при установке. Для остальных семи —
+Google&nbsp;Meet, Контур.Толк, МТС&nbsp;Линк, СБЕР&nbsp;Джаз, Jitsi&nbsp;Meet,
+Whereby, Amazon&nbsp;Chime — доступа нет, пока вы сами не включите платформу
+в настройках и не подтвердите запрос браузера; выключение платформы
+отзывает доступ. Адрес нужен ровно для одного решения — является ли страница
+страницей встречи, которую можно убрать, когда встреча закончилась.</p>
+<p>Эта проверка происходит целиком внутри браузера, в момент проверки, и её
+результат нигде не сохраняется. Адреса не записываются, не накапливаются
+и не покидают устройство.</p>
+<p>Содержимое страниц расширение не читает и не изменяет. Скрипт, который оно
+внедряет на страницы встреч, отвечает только на четыре вопроса: смотрит ли
+пользователь на эту вкладку, установлено ли в ней соединение видеосвязи
+(WebRTC), удерживает ли страница камеру, микрофон или экран и проигрывается
+ли в ней медиа. Это защита от закрытия вкладки, в которой действительно идёт
+звонок или ожидание входа во встречу.</p>
+<p>Чтобы ответить на второй и третий вопросы, скрипт оборачивает два
+стандартных интерфейса браузера — <code>RTCPeerConnection</code>
+и <code>getUserMedia</code>/<code>getDisplayMedia</code> — и только считает
+живые соединения и дорожки. Сам звонок, видео, звук и данные соединения он
+не читает, не записывает и не изменяет.</p>
+
+<h2>Что хранится на устройстве</h2>
+<ul>
+  <li><strong>Настройки</strong> — какие платформы включены и через сколько секунд
+    закрывать вкладку. Хранятся в <code>chrome.storage.sync</code>, поэтому
+    синхронизируются между вашими браузерами средствами самого браузера,
+    если вы включили синхронизацию в его настройках. Разработчику они
+    недоступны.</li>
+  <li><strong>Счётчик закрытых вкладок</strong> — одно число. Хранится в
+    <code>chrome.storage.local</code> и не покидает это устройство.</li>
+</ul>
+<p>Удаление расширения удаляет и то, и другое.</p>
+
+<h2>Чего расширение не делает</h2>
+<ul>
+  <li>не отправляет данные ни на какой сервер — в коде нет сетевых вызовов;</li>
+  <li>не собирает аналитику и телеметрию;</li>
+  <li>не показывает рекламу;</li>
+  <li>не передаёт и не продаёт данные третьим лицам;</li>
+  <li>не запрашивает разрешение <code>tabs</code>, которое дало бы доступ
+    к адресам всех вкладок браузера.</li>
+</ul>
+
+<h2>Изменения</h2>
+<p>Если политика изменится, новая редакция появится на этой странице с новой
+датой. Если расширение когда-нибудь начнёт обращаться к сети, это будет
+описано здесь до выпуска такой версии.</p>
+
+<h2>Связь</h2>
+<p>Вопросы — на почту поддержки, указанную в карточке расширения
+в Chrome&nbsp;Web&nbsp;Store.</p>
+
+<hr>
+
+<p class="lang">English</p>
+<h1>Privacy Policy</h1>
+<p class="date">Meeting Tab Cleaner browser extension. Version of 4 September 2026.</p>
+
+<h2>Summary</h2>
+<p>This extension collects no data, sends nothing anywhere, and makes no network
+requests. It has no server, no analytics and no accounts.</p>
+
+<h2>What is processed</h2>
+<p>To close a tab left over after a meeting, the extension reads the URLs of open
+tabs on the sites of twelve video-conferencing services. For five of them —
+Yandex Telemost, Zoom, Microsoft&nbsp;Teams, Cisco&nbsp;Webex and
+GoTo&nbsp;Meeting — access is requested at install time. For the other seven —
+Google&nbsp;Meet, Kontur.Talk, MTS&nbsp;Link, SBER&nbsp;Jazz, Jitsi&nbsp;Meet,
+Whereby and Amazon&nbsp;Chime — there is no access until you enable the platform
+in the settings and confirm the browser's request; disabling the platform
+revokes the access. The URL is used for exactly one decision — whether the page
+is a meeting page that can be removed once the meeting is over.</p>
+<p>That check happens entirely inside the browser, at the moment of the check, and
+its result is not stored. URLs are never recorded, accumulated or transmitted.</p>
+<p>Page content is neither read nor modified. The content script injected into
+meeting pages answers only four questions: whether the user is currently looking
+at the tab, whether it holds a live video-conferencing (WebRTC) connection,
+whether the page holds the camera, microphone or screen, and whether media is
+playing in it. This is the safeguard that prevents closing a tab in which a call
+is actually running or a user is waiting to be admitted.</p>
+<p>To answer the second and third questions the script wraps two standard browser
+interfaces — <code>RTCPeerConnection</code> and
+<code>getUserMedia</code>/<code>getDisplayMedia</code> — and only counts live
+connections and tracks. It does not read, record or alter the call itself, its
+video, audio or connection data.</p>
+
+<h2>What is stored on your device</h2>
+<ul>
+  <li><strong>Settings</strong> — which platforms are enabled and the delay before
+    closing. Kept in <code>chrome.storage.sync</code>, so your browser may sync
+    them across your own browsers if you enabled browser sync. The developer has
+    no access to them.</li>
+  <li><strong>A counter of closed tabs</strong> — a single number in
+    <code>chrome.storage.local</code>. It never leaves the device.</li>
+</ul>
+<p>Uninstalling the extension removes both.</p>
+
+<h2>What the extension does not do</h2>
+<ul>
+  <li>send data to any server — there are no network calls in the code;</li>
+  <li>collect analytics or telemetry;</li>
+  <li>show ads;</li>
+  <li>share or sell data to third parties;</li>
+  <li>request the <code>tabs</code> permission, which would expose the URLs of
+    every tab in the browser.</li>
+</ul>
+
+<h2>Changes</h2>
+<p>If this policy changes, the new version will appear on this page with a new
+date. If the extension ever starts contacting the network, that will be described
+here before such a version ships.</p>
+
+<h2>Contact</h2>
+<p>Questions — to the support email listed on the extension's Chrome&nbsp;Web&nbsp;Store page.</p>
+
+</body>
+</html>

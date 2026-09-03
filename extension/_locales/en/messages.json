@@ -1,0 +1,74 @@
+{
+  "extName": {
+    "message": "Meeting Tab Cleaner",
+    "description": "Extension name"
+  },
+  "extShortName": {
+    "message": "Tab Cleaner",
+    "description": "Short name for the extensions shelf"
+  },
+  "extDescription": {
+    "message": "Closes the leftover launcher tabs that Zoom, Teams, Webex, GoTo and Yandex Telemost leave behind after handing the call to the desktop app.",
+    "description": "Store and card description"
+  },
+  "optionsTitle": {
+    "message": "Meeting Tab Cleaner",
+    "description": "Options page heading"
+  },
+  "optionsSubtitle": {
+    "message": "The invite link launched your desktop app and the tab stayed behind. This extension closes those tabs for you.",
+    "description": "Options page subheading"
+  },
+  "optionsDelay": {
+    "message": "Close after",
+    "description": "Label for the delay selector"
+  },
+  "optionsSeconds": {
+    "message": "seconds of you being away from the tab",
+    "description": "Tail of the delay label"
+  },
+  "optionsSafety": {
+    "message": "A tab is never closed while you are looking at it, while it is pinned, while it makes sound, while it plays video, while it holds your camera, microphone or screen, or while it holds a live WebRTC connection. A meeting you are running in the browser, and the lobby before it, are left alone.",
+    "description": "Safety explanation"
+  },
+  "optionsStats": {
+    "message": "Tabs closed:",
+    "description": "Counter label"
+  },
+  "optionsVerified": {
+    "message": "verified on live calls",
+    "description": "Badge for a live-verified platform"
+  },
+  "optionsUnverified": {
+    "message": "from documentation",
+    "description": "Badge for a platform mapped from documentation only"
+  },
+  "optionsSaved": {
+    "message": "Saved",
+    "description": "Settings saved confirmation"
+  },
+  "optionsNeedsPermission": {
+    "message": "needs access",
+    "description": "Badge for a platform that requires an optional permission"
+  },
+  "optionsPermissionDenied": {
+    "message": "Without access to the site the extension cannot watch the meeting",
+    "description": "Shown when the permission request is declined"
+  },
+  "optionsGroupReady": {
+    "message": "Work out of the box",
+    "description": "Heading for platforms needing no extra permission"
+  },
+  "optionsGroupReadyHint": {
+    "message": "The link launches the desktop app and the tab is left empty.",
+    "description": "First group hint"
+  },
+  "optionsGroupOptional": {
+    "message": "Need access to the site",
+    "description": "Heading for platforms behind an optional permission"
+  },
+  "optionsGroupOptionalHint": {
+    "message": "These services run the call in the browser, so the extension needs access to their site. It is requested when you tick the box and revoked when you untick it.",
+    "description": "Second group hint"
+  }
+}
