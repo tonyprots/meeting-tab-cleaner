@@ -9,6 +9,11 @@
 
 const DEFAULT_DELAY = 30;
 const t = (key) => chrome.i18n.getMessage(key);
+// Названия платформ живут в реестре по-русски; для любой другой локали
+// браузера берём латинское имя, если оно там задано (Телемост, Толк,
+// МТС Линк, Джаз), — иначе английский пользователь видит кириллицу.
+const isRu = chrome.i18n.getUILanguage().toLowerCase().startsWith("ru");
+const platformTitle = (p) => (isRu ? p.title : p.titleEn ?? p.title);
 
 for (const [id, key] of [
   ["t-title", "optionsTitle"],
@@ -116,7 +121,7 @@ async function render() {
 
     const title = document.createElement("span");
     title.className = "title";
-    title.textContent = platform.title;
+    title.textContent = platformTitle(platform);
 
     const label = document.createElement("label");
     label.className = "row";
