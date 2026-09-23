@@ -8,7 +8,7 @@
     "description": "Short name for the extensions shelf"
   },
   "extDescription": {
-    "message": "Closes the tabs left behind after a video meeting: Zoom, Teams, Meet and nine more platforms.",
+    "message": "Closes the tabs left behind after a video meeting: Zoom, Teams, Meet and nine more. Optionally Telegram and CLI sign-in pages.",
     "description": "Store and card description"
   },
   "optionsTitle": {
@@ -16,7 +16,7 @@
     "description": "Options page heading"
   },
   "optionsSubtitle": {
-    "message": "The meeting ended or moved to the desktop app, and the tab stayed behind. This extension closes it for you.",
+    "message": "The meeting ended or moved to the desktop app, and the tab stayed behind. This extension closes it for you, and can do the same for Telegram links and CLI sign-in pages.",
     "description": "Options page subheading"
   },
   "optionsDelay": {
@@ -52,8 +52,8 @@
     "description": "Badge for a platform that requires an optional permission"
   },
   "optionsPermissionDenied": {
-    "message": "Without access to the site the extension cannot watch the meeting",
-    "description": "Shown when the permission request is declined"
+    "message": "Without access to the site the extension cannot see its tabs",
+    "description": "Permission denied message"
   },
   "optionsGroupReady": {
     "message": "Work out of the box",
@@ -64,11 +64,27 @@
     "description": "First group hint"
   },
   "optionsGroupOptional": {
-    "message": "Need access to the site",
+    "message": "Call in the browser",
     "description": "Heading for platforms behind an optional permission"
   },
   "optionsGroupOptionalHint": {
     "message": "These services run the call in the browser, so the extension needs access to their site. It is requested when you tick the box and revoked when you untick it.",
     "description": "Second group hint"
+  },
+  "optionsGroupApps": {
+    "message": "Messengers",
+    "description": "Messenger group heading"
+  },
+  "optionsGroupAppsHint": {
+    "message": "The page shows a post or an invite with an “Open in app” button. The tab is closed only after you press that button, so anything you opened to read stays.",
+    "description": "Messenger group hint"
+  },
+  "optionsGroupCli": {
+    "message": "Developer tool sign-in",
+    "description": "CLI group heading"
+  },
+  "optionsGroupCliHint": {
+    "message": "After you sign in, the tool leaves a “you can close this window” page. The extension looks at that page only and leaves the rest of the site alone.",
+    "description": "CLI group hint"
   }
 }

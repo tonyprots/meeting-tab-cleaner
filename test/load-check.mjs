@@ -85,6 +85,7 @@ const browser = spawn(chromePath, [
   "--disable-gpu",
   // Окно живое, но за пределами экрана: расширения в headless не поднимаются,
   // а мигать окном посреди работы незачем.
+  "--headless=new", // без окна: не отнимать фокус у приложений
   "--window-position=-3000,-3000",
   "--window-size=1000,800",
   "about:blank",
@@ -164,16 +165,21 @@ try {
   const heading = await evaluate(page, "document.getElementById('t-title').textContent");
   check(heading?.length > 3, `страница настроек отрисовалась: «${heading}»`);
   const rows = await evaluate(
-    page, "document.querySelectorAll('#ready li, #optional li').length");
-  check(rows === 12, `в настройках ${rows} платформ (ожидалось 12)`);
+    page, "document.querySelectorAll('li').length");
+  check(rows === 16, `в настройках ${rows} сервисов (ожидалось 16)`);
   const groups = await evaluate(page, `JSON.stringify({
     ready: document.querySelectorAll('#ready li').length,
     optional: document.querySelectorAll('#optional li').length,
+    apps: document.querySelectorAll('#apps li').length,
+    cli: document.querySelectorAll('#cli li').length,
   })`);
-  check(groups === '{"ready":5,"optional":7}', `платформы разложены по группам: ${groups}`);
+  check(groups === '{"ready":5,"optional":7,"apps":1,"cli":3}', `сервисы разложены по группам: ${groups}`);
   const asks = await evaluate(
-    page, "document.querySelectorAll('#optional .badge.ask').length");
-  check(asks === 7, `у ${asks} платформ помечено, что нужен доступ (ожидалось 7)`);
+    page, "document.querySelectorAll('.badge.ask').length");
+  check(asks === 11, `у ${asks} сервисов помечено, что нужен доступ (ожидалось 11)`);
+  const hints = await evaluate(
+    page, "['t-group-apps','t-group-apps-hint','t-group-cli','t-group-cli-hint'].every(id => document.getElementById(id).textContent.length > 3)");
+  check(hints === true, "заголовки и пояснения новых разделов подставлены из локали");
   const badges = await evaluate(
     page, "[...document.querySelectorAll('.badge')].map(b => b.textContent).join(' | ')");
   check(badges?.length > 5 && !badges.includes("undefined"), `метки проверки: ${badges}`);
@@ -207,7 +213,7 @@ try {
     const registry = await evaluate(
       sw, "typeof PLATFORMS !== 'undefined' ? PLATFORMS.map(p => p.id).join(',') : 'НЕТ'");
     check(registry !== "НЕТ", `importScripts подхватил реестр: ${registry}`);
-    check(registry.split(",").length === 12, `в реестре ${registry.split(",").length} платформ (ожидалось 12)`);
+    check(registry.split(",").length === 16, `в реестре ${registry.split(",").length} сервисов (ожидалось 16)`);
 
     const alarmsOk = await evaluate(sw, "chrome.alarms.getAll().then(a => Array.isArray(a))");
     check(alarmsOk === true, "chrome.alarms доступен, worker живой");
@@ -226,7 +232,7 @@ try {
     // и ни одно разрешение не раздаёт весь интернет.
     const granted = JSON.parse(await evaluate(
       sw, "new Promise(r => chrome.permissions.getAll(p => r(JSON.stringify(p.origins))))"));
-    const DOMAINS = ["yandex.ru", "zoom.us", "zoomgov.com", "microsoft.com", "live.com",
+    const DOMAINS = ["yandex.ru", "zoom.us", "zoomgov.com", "zoom.com", "microsoft.com", "live.com",
       "webex.com", "gotomeeting.com", "goto.com"];
     const stray = granted.filter((o) => {
       const host = o.replace(/^https?:\/\//, "").split("/")[0].replace(/^\*\./, "");
@@ -241,7 +247,7 @@ try {
     // Если бы выдали, вся затея теряла бы смысл — предупреждение выросло бы
     // на девять доменов у каждого установившего.
     const optional = m.optional_host_permissions ?? [];
-    check(optional.length === 9, `в манифесте ${optional.length} опциональных доменов`);
+    check(optional.length === 13, `в манифесте ${optional.length} опциональных доменов`);
     const leaked = optional.filter((o) => {
       const host = o.replace(/^https?:\/\//, "").split("/")[0].replace(/^\*\./, "");
       return granted.some((g) => g.includes(host));

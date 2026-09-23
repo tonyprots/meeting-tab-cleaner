@@ -22,6 +22,10 @@ for (const [id, key] of [
   ["t-group-ready-hint", "optionsGroupReadyHint"],
   ["t-group-optional", "optionsGroupOptional"],
   ["t-group-optional-hint", "optionsGroupOptionalHint"],
+  ["t-group-apps", "optionsGroupApps"],
+  ["t-group-apps-hint", "optionsGroupAppsHint"],
+  ["t-group-cli", "optionsGroupCli"],
+  ["t-group-cli-hint", "optionsGroupCliHint"],
   ["t-delay-head", "optionsDelay"],
   ["t-delay", "optionsDelay"],
   ["t-seconds", "optionsSeconds"],
@@ -33,12 +37,13 @@ for (const [id, key] of [
   document.getElementById(id).textContent = t(key);
 }
 
-// Группируем по тому, нужен ли платформе отдельный доступ, — это
-// единственное, чем они теперь друг от друга отличаются.
-const lists = {
-  ready: document.getElementById("ready"),
-  optional: document.getElementById("optional"),
-};
+// Встречи группируем по тому, нужен ли платформе отдельный доступ;
+// мессенджеры и вход в CLI — отдельными разделами (`group` в реестре),
+// доступ к сайту им нужен всегда.
+const lists = Object.fromEntries(
+  ["ready", "optional", "apps", "cli"].map((id) => [id, document.getElementById(id)]),
+);
+const listFor = (platform) => platform.group ?? (platform.optional ? "optional" : "ready");
 const delaySelect = document.getElementById("delay");
 const savedTag = document.getElementById("saved");
 const errorTag = document.getElementById("error");
@@ -109,7 +114,7 @@ async function render() {
   ]);
   const { closed = 0 } = await chrome.storage.local.get("closed");
 
-  const rows = { ready: [], optional: [] };
+  const rows = Object.fromEntries(Object.keys(lists).map((id) => [id, []]));
   for (const platform of PLATFORMS) {
     const granted = await hasPermission(platform);
 
@@ -129,11 +134,10 @@ async function render() {
 
     const li = document.createElement("li");
     li.append(label);
-    rows[platform.optional ? "optional" : "ready"].push(li);
+    rows[listFor(platform)].push(li);
   }
 
-  lists.ready.replaceChildren(...rows.ready);
-  lists.optional.replaceChildren(...rows.optional);
+  for (const [id, list] of Object.entries(lists)) list.replaceChildren(...rows[id]);
 
   delaySelect.value = String(delaySeconds || DEFAULT_DELAY);
   document.getElementById("closed").textContent = String(closed);

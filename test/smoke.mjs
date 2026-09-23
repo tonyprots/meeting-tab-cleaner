@@ -186,6 +186,12 @@ const WATCHED = {
     "https://acme.zoom.us/wc/93312345678/join",
     "https://app.zoom.us/wc/93312345678/start",
     "https://app.zoom.us/wc/leave?reason=1",
+    // вебинар — та же страница «Launch Meeting» (curl, 2026-09-23)
+    "https://zoom.us/w/123456789?tk=abc",
+    "https://acme.zoom.us/w/123456789",
+    // куда веб-клиент уводит вкладку после выхода из встречи (curl, 2026-09-23)
+    "https://www.zoom.com/en/lp/my-notes?from=web_join_post_meeting&_x_zm_rtaid=abc.123",
+    "https://www.zoom.com/lp/my-notes/?x=1&from=web_join_post_meeting",
   ],
   teams: [
     "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0?context=%7b%7d",
@@ -195,6 +201,10 @@ const WATCHED = {
     "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fmeetup-join%2F19%3Ameeting_abc%40thread.v2%2F0&type=meetup-join&deeplinkId=3dcf&directDl=true&msLaunch=true&enableMobilePage=true",
     "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fmeet%2F2345678901234%3Fp%3Dabc&type=meet&deeplinkId=2515",
     "https://teams.live.com/dl/launcher/launcher.html?url=%2F_%23%2Fmeet%2F9312345678901&type=meet",
+    // чат, канал, сообщение — тот же лаунчер (curl, 2026-09-23)
+    "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fchat%2F0%2F0%3Fusers%3Da%40b.com&type=chat&deeplinkId=62e5&directDl=true",
+    "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fchannel%2F19%3Aabc&type=channel&deeplinkId=694b",
+    "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fmessage%2F19%3Aabc%2F123&type=message&deeplinkId=f2ba",
   ],
   webex: [
     "https://acme.webex.com/acme/j.php?MTID=m9141c5525bf883b31f2c716b95f83a8c",
@@ -224,6 +234,16 @@ const WATCHED = {
   jitsi: ["https://meet.jit.si/SomeRoom", "https://8x8.vc/vpaas-magic/SomeRoom"],
   whereby: ["https://whereby.com/my-room", "https://acme.whereby.com/standup"],
   chime: ["https://app.chime.aws/meetings/1234567890", "https://app.chime.aws/meetings/anton-personal-room"],
+  telegram: [
+    "https://t.me/durov",
+    "https://t.me/+AbCdEf123",
+    "https://t.me/joinchat/AbCdEf123",
+    "https://t.me/durov/100",
+    "https://t.me/addstickers/Animals",
+  ],
+  gcloud: ["https://docs.cloud.google.com/sdk/auth_success", "https://docs.cloud.google.com/sdk/auth_success?hl=ru"],
+  wrangler: ["https://welcome.developers.workers.dev/wrangler-oauth-consent-granted"],
+  "claude-code": ["https://platform.claude.com/oauth/code/success?app=claude-code"],
 };
 
 // Не комнаты на тех же доменах: корни, списки встреч, личные кабинеты,
@@ -254,7 +274,22 @@ const ROOTS = [
   "https://app.chime.aws/meetings",
   "https://app.chime.aws/conversations/new?email=x%40y.z",
   "https://meet.goto.com/",
-  "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fchat%2F0%2F0&type=chat&deeplinkId=1",
+  // неизвестный тип лаунчера — не берём, пока не видели, куда он ведёт
+  "https://teams.microsoft.com/dl/launcher/launcher.html?url=%2F_%23%2Fl%2Fteam%2F1&type=team&deeplinkId=1",
+  // Zoom: остальной маркетинг и те же заметки, открытые не после встречи
+  "https://www.zoom.com/en/lp/my-notes",
+  "https://www.zoom.com/en/lp/my-notes?from=homepage",
+  "https://www.zoom.com/en/lp/my-notes?xfrom=web_join_post_meeting",
+  // Telegram: лента канала читается в браузере, корень уводит на telegram.org
+  "https://t.me/s/durov",
+  "https://t.me/s/durov/100",
+  "https://t.me/",
+  // CLI: соседние страницы тех же сайтов
+  "https://docs.cloud.google.com/sdk/auth_success_other",
+  "https://docs.cloud.google.com/sdk/docs/install",
+  "https://welcome.developers.workers.dev/",
+  "https://platform.claude.com/oauth/code/callback?code=abc&state=xyz",
+  "https://platform.claude.com/oauth/code/success-page",
   "https://acme.webex.com/webappng/sites/acme/dashboard/home",
   "https://telemost.yandex.ru/",
 ];
@@ -268,6 +303,14 @@ const FOREIGN = [
   "https://app.goto.com/meeting/123456789",
   // VK Звонки исключены: доступ к vk.com выдаётся на весь сайт
   "https://vk.com/call/join/abcdef",
+  // рассмотрены и не взяты (2026-09-23)
+  "https://api.whatsapp.com/send/?phone=79990000000",
+  "https://web.whatsapp.com/send/?phone=79990000000",
+  "https://discord.com/invite/python",
+  "https://docs.cloud.google.com/sdk/docs/authorizing",
+  "https://platform.claude.com/settings/keys",
+  // финиши входа на localhost — под тот же адрес попал бы дев-сервер
+  "http://localhost:8085/?code=abc&state=xyz",
   // просто посторонние
   "https://ya.ru/j/123",
   // подделки под наши домены
@@ -277,6 +320,8 @@ const FOREIGN = [
   "https://meet.google.com.evil.com/abc-defg-hij",
   "https://ktalk.ru.evil.com/room-42",
   "https://app.chime.aws.evil.com/meetings/1",
+  "https://t.me.evil.com/durov",
+  "https://www.zoom.com.evil.com/en/lp/my-notes?from=web_join_post_meeting",
 ];
 
 const allMatchRes = ALL_MATCHES.map(patternToRegex);
@@ -599,6 +644,69 @@ await emit(listeners.created, tab(216, J360));
 await Promise.all([fireAlarm("close:215"), fireAlarm("close:216")]);
 await settle();
 check(store.local.closed === 2, `21в: счётчик после двух одновременных закрытий = ${store.local.closed}`);
+
+// ============ лаунчер по кнопке (handoff) ============
+// t.me/<канал>/<пост> — это сам пост. Открыть пять таких фоном «почитать
+// потом» — нормально, и закрывать их нельзя. Кандидат — только вкладка,
+// которая сама сообщила, что передала действие приложению.
+
+const TG = "https://t.me/durov/100";
+const enableTelegram = () => setSync({ enabled: { telegram: true } });
+
+// --- 25: пост открыт фоном, в приложение не уходили — не трогаем ---
+await reset();
+await enableTelegram();
+windows.set(1, { focused: false });
+pages.set(250, { watched: false, busy: false, handedOff: false });
+await emit(listeners.created, tab(250, TG));
+check(!alarms.has("close:250"), "25a: пост без клика «открыть в приложении» не получает отсчёта");
+check(!alarms.has("tick"), "25b: и не будит тик — он не кандидат");
+await emit(listeners.message, { type: "page", state: { watched: false, busy: false, handedOff: false } }, { tab: tabs.get(250), url: TG });
+await settle();
+check(!alarms.has("close:250"), "25c: blur без передачи отсчёта не взводит");
+
+// --- 26: страница молчит — тоже не трогаем ---
+// У встреч молчание значит «решаем по данным браузера», здесь — «не наше»:
+// без положительного признака пост от хвоста не отличить.
+await reset();
+await enableTelegram();
+windows.set(1, { focused: false });
+await emit(listeners.created, tab(260, TG)); // content script не ответит
+await emit(listeners.startup);
+await settle();
+check(!alarms.has("close:260"), "26: без ответа страницы вкладка с handoff не кандидат");
+
+// --- 27: клик по tg:// — дальше общее правило ---
+await reset();
+await enableTelegram();
+windows.set(1, { focused: false });
+pages.set(270, { watched: false, busy: false, handedOff: false });
+await emit(listeners.created, tab(270, TG));
+pages.set(270, { watched: false, busy: false, handedOff: true });
+await emit(listeners.message, { type: "page", state: pages.get(270) }, { tab: tabs.get(270), url: TG });
+await settle();
+check(alarms.has("close:270"), "27a: страница ушла в приложение — отсчёт взведён");
+await fireAlarm("close:270");
+check(removed.includes(270), "27b: и вкладка закрыта");
+
+// --- 28: к моменту решения страница перезагрузилась — признака нет ---
+await reset();
+await enableTelegram();
+windows.set(1, { focused: false });
+pages.set(280, { watched: false, busy: false, handedOff: true });
+await emit(listeners.created, tab(280, TG));
+check(alarms.has("close:280"), "28a: переданная вкладка получила отсчёт");
+pages.set(280, { watched: false, busy: false, handedOff: false });
+await fireAlarm("close:280");
+check(tabs.has(280) && !alarms.has("close:280"), "28b: признак пропал к решению — не закрыта и снята с отсчёта");
+
+// --- 29: признак не нужен остальным записям ---
+await reset();
+windows.set(1, { focused: false });
+pages.set(290, { watched: false, busy: false, handedOff: false });
+await emit(listeners.created, tab(290, J));
+await fireAlarm("close:290");
+check(removed.includes(290), "29: Телемост закрывается и без признака передачи");
 
 // --- 22: выключенная платформа не наблюдается ---
 await reset();

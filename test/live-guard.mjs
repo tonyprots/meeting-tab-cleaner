@@ -180,6 +180,7 @@ const browser = spawn(chromePath, [
   "--no-first-run",
   "--no-default-browser-check",
   "--disable-gpu",
+  "--headless=new", // без окна: не отнимать фокус у приложений
   "--window-position=-3000,-3000",
   "--window-size=1000,800",
   "about:blank",

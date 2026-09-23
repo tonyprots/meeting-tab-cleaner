@@ -1,8 +1,9 @@
-// Чистильщик вкладок видеовстреч.
+// Чистильщик хвостовых вкладок.
 //
-// Закрывает вкладки, оставшиеся после видеовстречи: страницы-посредники,
-// отдавшие звонок десктопному приложению, и страницы звонка, из которого
-// человек уже вышел. Список платформ — в platforms.js.
+// Закрывает вкладки, которые передали действие приложению или отработали
+// своё: страницы-посредники, отдавшие звонок или чат десктопному приложению,
+// страницы звонка, из которого человек уже вышел, страницы «открыть
+// в Telegram» после клика, финиши входа в CLI. Список сервисов — в platforms.js.
 //
 // Вся логика сходится в reconcile(tab): привести аларм вкладки в правильное
 // состояние. Функция идемпотентна, поэтому события могут вызывать её сколько
@@ -192,6 +193,13 @@ async function askPage(tabId) {
   }
 }
 
+// Записи реестра с `handoff` — страницы, где рядом с кнопкой «открыть
+// в приложении» лежит содержимое. Такая вкладка становится кандидатом, только
+// когда страница сама сказала, что передала действие приложению. Нет ответа —
+// не кандидат: молчание разрешением закрыть не считается.
+const handedOff = async (tabId, platform) =>
+  !platform.handoff || (await askPage(tabId))?.handedOff === true;
+
 // Инкремент через storage — это read-modify-write, а закрываются вкладки
 // пачкой: алармы нескольких хвостов срабатывают в один тик, все читают
 // одно и то же значение и записывают одно и то же. Счётчик недосчитывал.
@@ -216,7 +224,7 @@ const busy = (state) => state?.watched === true || state?.busy === true;
 async function reconcile(tab) {
   if (tab.id === undefined) return;
   const platform = await activePlatform(tab.url);
-  if (!platform) {
+  if (!platform || !(await handedOff(tab.id, platform))) {
     await clearAlarm(tab.id);
     return;
   }
@@ -237,7 +245,8 @@ async function reconcileAll() {
   const live = [];
   const idle = [];
   for (const tab of tabs) {
-    ((await activePlatform(tab.url)) ? live : idle).push(tab);
+    const platform = await activePlatform(tab.url);
+    (platform && (await handedOff(tab.id, platform)) ? live : idle).push(tab);
   }
   await setTick(live.length > 0);
   await Promise.all(idle.map((tab) => clearAlarm(tab.id)));
@@ -280,7 +289,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   // Последняя и самая надёжная защита: страница сама говорит, идёт ли в ней
   // звонок. Живое WebRTC-соединение или играющий медиаэлемент — оба признака
   // работают и там, где tab.audible молчит, потому что в комнате тишина.
-  if (busy(await askPage(tabId))) {
+  const page = await askPage(tabId);
+  if (platform.handoff && page?.handedOff !== true) return; // не кандидат
+  if (busy(page)) {
     await schedule(alarm.name);
     return;
   }
@@ -306,8 +317,9 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 });
 
 async function onPageReport(tabId, url, state) {
-  if (!(await activePlatform(url))) return;
-  if (busy(state)) {
+  const platform = await activePlatform(url);
+  if (!platform) return;
+  if (busy(state) || (platform.handoff && !state.handedOff)) {
     await clearAlarm(tabId);
   } else {
     await setTick(true);

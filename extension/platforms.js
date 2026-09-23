@@ -1,5 +1,7 @@
-// Реестр ВКС-платформ — единственный источник правды о том, что мы вообще
-// трогаем. Отсюда паттерны разъезжаются в манифест (host_permissions,
+// Реестр сервисов — единственный источник правды о том, что мы вообще
+// трогаем. Исторически здесь были только ВКС; с 3.3.0 — любые вкладки,
+// которые передали действие приложению или отработали своё: лаунчеры
+// встреч и чатов, страницы «открыть в Telegram», финиши входа в CLI. Отсюда паттерны разъезжаются в манифест (host_permissions,
 // optional_host_permissions, content_scripts) и в tabs.query.
 // Добавить платформу = добавить сюда запись.
 //
@@ -8,6 +10,10 @@
 //              `https://telemost.yandex.ru.evil.com/j/1` мимо.
 // `optional` — разрешение на домены не просится при установке, а выдаётся
 //              пользователем по галочке в настройках.
+// `group`    — раздел на странице настроек: встречи (по умолчанию),
+//              мессенджеры, вход в CLI. На поведение не влияет.
+// `handoff`  — закрывать только после того, как страница передала действие
+//              приложению (см. ниже «Лаунчер по кнопке»).
 //
 // ── Правило одно на всех ──
 //
@@ -33,6 +39,18 @@
 // требует именно его: у этих сервисов рядом с комнатами живут домашние
 // страницы с непустым путём (`meet.google.com/landing`, `app.zoom.us/wc/home`),
 // и «путь непустой» их не отсекает.
+//
+// ── Лаунчер по кнопке ──
+//
+// Есть страницы, которые сами приложение не запускают, а показывают контент
+// и кнопку «Открыть в приложении»: `t.me/<канал>/<пост>` — это сам пост.
+// Человек мог открыть пять таких ссылок фоном, чтобы прочитать позже, и общее
+// правило закрыло бы их через 30 секунд. Для таких записей `handoff: true`:
+// вкладка становится кандидатом, только когда страница сообщила, что ушла
+// в приложение, — перешла по ссылке с чужой схемой (`tg://…`). Это ловит
+// content.js через Navigation API (2026-09-23, проверено на t.me: клик по
+// `tg://resolve` даёт `navigate` с этим адресом, сама страница остаётся).
+// Молчание страницы — как и везде — разрешением закрыть не считается.
 //
 // ── Ссылка из приглашения ≠ адрес вкладки ──
 //
@@ -69,18 +87,28 @@ const PLATFORMS = [
       "https://*.zoomgov.com/j/*",
       "https://*.zoomgov.com/s/*",
       "https://*.zoomgov.com/wc/*",
+      "https://*.zoom.us/w/*",
+      "https://*.zoomgov.com/w/*",
+      "https://www.zoom.com/*lp/my-notes*",
     ],
-    // /j/ и /s/ — приглашение, /wc/ — веб-клиент. Одна запись на всё:
+    // /j/ и /s/ — приглашение, /w/ — вебинар (та же страница «Launch
+    // Meeting», проверено curl 2026-09-23), /wc/ — веб-клиент. После выхода
+    // из встречи в веб-клиенте Zoom уводит вкладку на рекламу своих заметок
+    // `www.zoom.com/<локаль>/lp/my-notes?from=web_join_post_meeting` — это
+    // тот же хвост, гейт держится за метку `from`. Одна запись на всё:
     // правило одинаковое, а защиты разберутся. В веб-клиенте комната —
     // это /wc/<id>/…, /wc/join/<id> и страница выхода /wc/leave; а вот
     // /wc/home — домашняя страница веб-приложения, её не трогаем.
-    test: /^https:\/\/([\w-]+\.)*(zoom\.us|zoomgov\.com)\/(j\/|s\/|wc\/(\d+\/|join\/|leave([?#]|$)))/,
+    test: /^https:\/\/(([\w-]+\.)*(zoom\.us|zoomgov\.com)\/(j\/|s\/|w\/|wc\/(\d+\/|join\/|leave([?#]|$)))|www\.zoom\.com\/([a-z]{2}(-[a-z]{2})?\/)?lp\/my-notes\/?\?([^#]*&)?from=web_join_post_meeting([&#]|$))/,
     defaultOn: true,
   },
   {
     // Ссылки /l/meetup-join/ и /meet/ сервер редиректит на страницу-лаунчер
     // /dl/launcher/launcher.html?…&type=meetup-join|meet — именно она
-    // и остаётся висеть. Другие типы лаунчера (chat, team) не наши.
+    // и остаётся висеть. Ссылки на чат, канал и сообщение (/l/chat/,
+    // /l/channel/, /l/message/) приходят на тот же лаунчер с type=chat,
+    // channel, message (curl 2026-09-23). Кнопка «использовать веб-версию»
+    // уводит вкладку с лаунчера, так что сам лаунчер всегда хвост.
     // Веб-клиент на /v2/ сюда не входит: Teams в браузере — это целое
     // рабочее пространство, а не одна встреча, закрывать его нельзя.
     id: "teams",
@@ -94,7 +122,7 @@ const PLATFORMS = [
       "https://teams.live.com/meet/*",
       "https://teams.live.com/dl/launcher/*",
     ],
-    test: /^https:\/\/teams\.(microsoft|live)\.com\/(l\/meetup-join\/|meet\/|dl\/launcher\/launcher\.html\?([^#]*&)?type=meet(up-join)?([&#]|$))/,
+    test: /^https:\/\/teams\.(microsoft|live)\.com\/(l\/meetup-join\/|meet\/|dl\/launcher\/launcher\.html\?([^#]*&)?type=(meet(up-join)?|chat|channel|message)([&#]|$))/,
     defaultOn: true,
   },
   {
@@ -216,6 +244,69 @@ const PLATFORMS = [
     title: "Amazon Chime",
     match: ["https://app.chime.aws/*"],
     test: /^https:\/\/app\.chime\.aws\/meetings\/[^/?#]/,
+    defaultOn: false,
+  },
+
+  // ── Мессенджеры ────────────────────────────────────────────────────────
+  {
+    // t.me/<имя>, t.me/+<приглашение>, t.me/<канал>/<пост>, t.me/addstickers/…
+    // — все показывают карточку и кнопку `tg://…`. Автозапуск через iframe
+    // в разметке есть, но на десктопе выключен (`if (false)`, 2026-09-23),
+    // поэтому закрываем только после клика: `handoff`. Лента `t.me/s/<канал>`
+    // — это чтение в браузере, её не трогаем даже после клика.
+    // WhatsApp и Discord рассмотрены и не взяты: кнопка «Open app» на
+    // api.whatsapp.com уводит саму вкладку в веб-клиент, а Discord открывает
+    // приглашение в приложении через локальный RPC, не по ссылке, и без входа
+    // показывает форму регистрации.
+    id: "telegram",
+    optional: true,
+    handoff: true,
+    group: "apps",
+    verified: false,
+    title: "Telegram",
+    match: ["https://t.me/*"],
+    test: /^https:\/\/t\.me\/(?!s\/)[^/?#]/,
+    defaultOn: false,
+  },
+
+  // ── Вход в CLI ─────────────────────────────────────────────────────────
+  // Утилита открывает браузер для входа и после него оставляет страницу
+  // «можно закрыть». Гейт — ровно путь этой страницы, остальной сайт
+  // (документация Google Cloud, консоль Claude) не затрагивается.
+  // Финиши на localhost (AWS, Azure, Firebase) не взяты: под тот же адрес
+  // попал бы локальный сервер разработчика.
+  {
+    // cloud.google.com/sdk/auth_success редиректит сюда (301, 2026-09-23)
+    id: "gcloud",
+    optional: true,
+    group: "cli",
+    verified: false,
+    title: "Google Cloud CLI",
+    match: ["https://docs.cloud.google.com/sdk/auth_success*"],
+    test: /^https:\/\/docs\.cloud\.google\.com\/sdk\/auth_success([/?#]|$)/,
+    defaultOn: false,
+  },
+  {
+    id: "wrangler",
+    optional: true,
+    group: "cli",
+    verified: false,
+    title: "Cloudflare Wrangler",
+    match: ["https://welcome.developers.workers.dev/wrangler-oauth-consent-granted*"],
+    test: /^https:\/\/welcome\.developers\.workers\.dev\/wrangler-oauth-consent-granted([/?#]|$)/,
+    defaultOn: false,
+  },
+  {
+    // console.anthropic.com/oauth/code/success редиректит сюда (301, 2026-09-23).
+    // Соседняя /oauth/code/callback показывает код для ручной вставки — её
+    // не трогаем: человек может ещё не скопировать код.
+    id: "claude-code",
+    optional: true,
+    group: "cli",
+    verified: false,
+    title: "Claude Code",
+    match: ["https://platform.claude.com/oauth/code/success*"],
+    test: /^https:\/\/platform\.claude\.com\/oauth\/code\/success([/?#]|$)/,
     defaultOn: false,
   },
 ];

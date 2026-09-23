@@ -45,14 +45,20 @@ Whereby, Amazon&nbsp;Chime — доступа нет, пока вы сами н�
 в настройках и не подтвердите запрос браузера; выключение платформы
 отзывает доступ. Адрес нужен ровно для одного: понять, что перед нами страница
 встречи, которую можно убрать, когда встреча закончилась.</p>
+<p>Так же, только по вашему согласию и по отдельной галочке, расширение может
+получить доступ к ссылкам Telegram (<code>t.me</code>) и к трём страницам
+«вход выполнен» утилит командной строки: Google&nbsp;Cloud&nbsp;CLI,
+Cloudflare&nbsp;Wrangler и Claude&nbsp;Code. На этих сайтах оно смотрит только
+на адреса таких страниц.</p>
 <p>Проверка идёт целиком внутри браузера, и её результат нигде не сохраняется.
 Адреса не записываются, не накапливаются и не покидают устройство.</p>
 <p>Содержимое страниц расширение не читает и не изменяет. Скрипт, который оно
-внедряет на страницы встреч, отвечает только на четыре вопроса: смотрит ли
+внедряет на наблюдаемые страницы, отвечает только на пять вопросов: смотрит ли
 пользователь на эту вкладку, установлено ли в ней соединение видеосвязи
 (WebRTC), удерживает ли страница камеру, микрофон или экран и проигрывается
-ли в ней медиа. Это защита от закрытия вкладки, в которой действительно идёт
-звонок или ожидание входа во встречу.</p>
+ли в ней медиа, а на страницах Telegram — нажали ли на ней кнопку «Открыть
+в приложении». Это защита от закрытия вкладки, в которой действительно идёт
+звонок или ожидание входа во встречу, и поста, открытого почитать.</p>
 <p>Чтобы ответить на второй и третий вопросы, скрипт оборачивает два
 стандартных интерфейса браузера — <code>RTCPeerConnection</code>
 и <code>getUserMedia</code>/<code>getDisplayMedia</code> — и только считает
@@ -110,14 +116,20 @@ Whereby and Amazon&nbsp;Chime — there is no access until you enable the platfo
 in the settings and confirm the browser's request; disabling the platform
 revokes the access. The URL is used for exactly one decision — whether the page
 is a meeting page that can be removed once the meeting is over.</p>
+<p>In the same way, only with your consent and one checkbox at a time, the
+extension can get access to Telegram links (<code>t.me</code>) and to three
+"signed in" pages of command-line tools: Google&nbsp;Cloud&nbsp;CLI,
+Cloudflare&nbsp;Wrangler and Claude&nbsp;Code. On those sites it only looks at
+the addresses of such pages.</p>
 <p>That check happens entirely inside the browser, at the moment of the check, and
 its result is not stored. URLs are never recorded, accumulated or transmitted.</p>
 <p>Page content is neither read nor modified. The content script injected into
-meeting pages answers only four questions: whether the user is currently looking
+watched pages answers only five questions: whether the user is currently looking
 at the tab, whether it holds a live video-conferencing (WebRTC) connection,
 whether the page holds the camera, microphone or screen, and whether media is
-playing in it. This is the safeguard that prevents closing a tab in which a call
-is actually running or a user is waiting to be admitted.</p>
+playing in it, and, on Telegram pages, whether its "Open in app" button has been
+pressed. This is the safeguard that prevents closing a tab in which a call is
+actually running or a user is waiting to be admitted, or a post opened to read.</p>
 <p>To answer the second and third questions the script wraps two standard browser
 interfaces — <code>RTCPeerConnection</code> and
 <code>getUserMedia</code>/<code>getDisplayMedia</code> — and only counts live
