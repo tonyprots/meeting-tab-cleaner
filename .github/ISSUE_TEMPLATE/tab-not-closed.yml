@@ -1,0 +1,33 @@
+name: Вкладка не закрылась
+description: После встречи вкладка осталась висеть.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Сначала проверьте, что сервис включён в настройках расширения: сервисы, отмеченные в README «галочкой», по умолчанию выключены. Ссылку на встречу не выкладывайте, адрес покажите с `<id>`.
+  - type: input
+    id: service
+    attributes:
+      label: Сервис
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Адрес, на котором осталась вкладка, без идентификатора
+      description: Именно адрес вкладки, а не ссылка из приглашения — сервисы часто редиректят на другую страницу.
+      placeholder: https://teams.microsoft.com/dl/launcher/launcher.html?type=meetup-join&...
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Что происходило
+      description: Звонок ушёл в приложение или шёл в браузере? Играло ли что-то во вкладке после выхода?
+  - type: input
+    id: versions
+    attributes:
+      label: Версия расширения и браузера
+    validations:
+      required: true

@@ -1,0 +1,46 @@
+name: Закрыло вкладку с живой встречей
+description: Расширение закрыло вкладку, где шёл звонок или вы ждали в зале ожидания. Разбирается первым.
+labels: ["bug", "critical"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ссылку на встречу, имена участников и снимки экрана со звонка не выкладывайте. Адрес покажите с `<id>` вместо номера встречи.
+  - type: input
+    id: service
+    attributes:
+      label: Сервис
+      placeholder: Google Meet
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Адрес вкладки без идентификатора
+      placeholder: https://meet.google.com/<id>
+    validations:
+      required: true
+  - type: dropdown
+    id: state
+    attributes:
+      label: Что было во вкладке в момент закрытия
+      options:
+        - шёл звонок, камера и микрофон выключены
+        - шёл звонок, камера или микрофон включены
+        - ждал в зале ожидания
+        - смотрел демонстрацию экрана
+        - другое (опишу ниже)
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Что происходило
+      description: Сколько времени вкладка была не на глазах, была ли она в отдельном окне, не открывали ли встречу до установки или обновления расширения.
+  - type: input
+    id: versions
+    attributes:
+      label: Версия расширения и браузера
+      placeholder: 3.3.0, Chrome 140 / Яндекс Браузер 25.8, macOS 15
+    validations:
+      required: true

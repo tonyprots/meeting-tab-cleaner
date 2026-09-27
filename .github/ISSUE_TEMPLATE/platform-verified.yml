@@ -1,0 +1,30 @@
+name: Проверил платформу на живой встрече
+description: Провели настоящую встречу с расширением — расскажите, как оно себя вело. По этим отчётам снимается метка «по документации».
+labels: ["platform-check", "good first issue"]
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Сервис
+      placeholder: Zoom
+    validations:
+      required: true
+  - type: checkboxes
+    id: scenarios
+    attributes:
+      label: Что проверили
+      options:
+        - label: ссылка запустила приложение — вкладка-посредник закрылась
+        - label: звонок в браузере — вкладка жила всю встречу, даже когда я уходил в другое окно
+        - label: вышел из звонка в браузере — вкладка закрылась
+        - label: ждал в зале ожидания в другом окне — вкладку не закрыло
+  - type: textarea
+    id: issues
+    attributes:
+      label: Что пошло не так, если пошло
+  - type: input
+    id: versions
+    attributes:
+      label: Версия расширения и браузера
+    validations:
+      required: true

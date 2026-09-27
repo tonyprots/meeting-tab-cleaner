@@ -1,0 +1,33 @@
+name: Добавить платформу
+description: Сервис видеосвязи или другая вкладка, которая передаёт действие приложению и остаётся висеть.
+labels: ["platform-request"]
+body:
+  - type: input
+    id: service
+    attributes:
+      label: Сервис
+    validations:
+      required: true
+  - type: textarea
+    id: redirect
+    attributes:
+      label: Конечный адрес вкладки
+      description: Прогоните ссылку-приглашение через `curl -sIL <ссылка>` и вставьте цепочку Location, заменив идентификаторы на `<id>`.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Что происходит по ссылке
+      options:
+        - запускается десктопное приложение, вкладка остаётся пустой
+        - звонок идёт прямо в браузере
+        - бывает и так, и так
+    validations:
+      required: true
+  - type: textarea
+    id: home
+    attributes:
+      label: Страницы на том же домене, которые закрывать нельзя
+      description: Список встреч, личный кабинет, настройки — всё, что живёт рядом с комнатами.
