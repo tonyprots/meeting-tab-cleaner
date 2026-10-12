@@ -1,19 +1,24 @@
 // Реестр сервисов — единственный источник правды о том, что мы вообще
 // трогаем. Исторически здесь были только ВКС; с 3.3.0 — любые вкладки,
 // которые передали действие приложению или отработали своё: лаунчеры
-// встреч и чатов, страницы «открыть в Telegram», финиши входа в CLI. Отсюда паттерны разъезжаются в манифест (host_permissions,
+// встреч и чатов, страницы «открыть в Telegram», финиши входа в CLI.
+// Отсюда паттерны разъезжаются в манифест (host_permissions,
 // optional_host_permissions, content_scripts) и в tabs.query.
-// Добавить платформу = добавить сюда запись.
+// Добавить платформу = добавить сюда запись и перенести её `match`
+// в манифест; test/smoke.mjs сверяет, что копии не разъехались.
 //
-// `match`    — match-паттерны для манифеста и tabs.query, заведомо чуть шире.
-// `test`     — точный гейт в момент решения; именно он отвечает за то, что
-//              `https://telemost.yandex.ru.evil.com/j/1` мимо.
-// `optional` — разрешение на домены не просится при установке, а выдаётся
-//              пользователем по галочке в настройках.
-// `group`    — раздел на странице настроек: встречи (по умолчанию),
-//              мессенджеры, вход в CLI. На поведение не влияет.
-// `handoff`  — закрывать только после того, как страница передала действие
-//              приложению (см. ниже «Лаунчер по кнопке»).
+// `title`     — название в настройках; `titleEn` — латиницей для всех
+//               локалей, кроме русской, если название кириллическое.
+// `match`     — match-паттерны для манифеста и tabs.query, заведомо чуть шире.
+// `test`      — точный гейт в момент решения; именно он отвечает за то, что
+//               `https://telemost.yandex.ru.evil.com/j/1` мимо.
+// `defaultOn` — включена ли платформа сразу после установки.
+// `optional`  — разрешение на домены не просится при установке, а выдаётся
+//               пользователем по галочке в настройках.
+// `group`     — раздел на странице настроек: встречи (по умолчанию),
+//               мессенджеры, вход в CLI. На поведение не влияет.
+// `handoff`   — закрывать только после того, как страница передала действие
+//               приложению (см. ниже «Лаунчер по кнопке»).
 //
 // ── Правило одно на всех ──
 //
@@ -66,7 +71,6 @@ const PLATFORMS = [
     // звонок, если нажать «Продолжить в браузере». По URL не различить,
     // и не надо. Проверено вживую.
     id: "telemost",
-    verified: true,
     title: "Яндекс Телемост",
     titleEn: "Yandex Telemost",
     match: [
@@ -78,7 +82,6 @@ const PLATFORMS = [
   },
   {
     id: "zoom",
-    verified: false,
     title: "Zoom",
     match: [
       "https://*.zoom.us/j/*",
@@ -112,7 +115,6 @@ const PLATFORMS = [
     // Веб-клиент на /v2/ сюда не входит: Teams в браузере — это целое
     // рабочее пространство, а не одна встреча, закрывать его нельзя.
     id: "teams",
-    verified: false,
     title: "Microsoft Teams",
     match: [
       "https://teams.microsoft.com/l/meetup-join/*",
@@ -131,7 +133,6 @@ const PLATFORMS = [
     // это и есть страница «запускаем приложение». Остальной webappng —
     // личный кабинет и веб-клиент, его не трогаем.
     id: "webex",
-    verified: false,
     title: "Cisco Webex",
     match: [
       "https://*.webex.com/*/j.php*",
@@ -146,7 +147,6 @@ const PLATFORMS = [
     // global.gotomeeting.com/join/<id> — старый формат, ссылки ещё ходят.
     // Корень meet.goto.com редиректит в веб-приложение app.goto.com — не наше.
     id: "goto",
-    verified: false,
     title: "GoTo Meeting",
     match: [
       "https://*.gotomeeting.com/join/*",
@@ -158,15 +158,15 @@ const PLATFORMS = [
   },
 
   // ── Платформы, чьи домены не просятся при установке ───────────────────
-  // У них звонок идёт по адресу приглашения, поэтому гейт — весь домен
-  // минус корень. Знать формат комнаты не требуется.
+  // У них звонок идёт по адресу приглашения. Гейт — формат комнаты, где он
+  // документирован (Meet, МТС Линк, Chime), иначе весь домен минус корень
+  // и известные служебные разделы.
   {
     // Код комнаты — всегда три-четыре-три буквы (abc-defg-hij), формат
     // не менялся с 2017 года; /lookup/<имя> — именованные комнаты Workspace.
     // Всё остальное на домене (/landing, /new, /calendar) — не комнаты.
     id: "meet",
     optional: true,
-    verified: false,
     title: "Google Meet",
     match: ["https://meet.google.com/*"],
     test: /^https:\/\/meet\.google\.com\/(_meet\/)?([a-z]{3}-[a-z]{4}-[a-z]{3}|lookup\/[^/?#]+)([/?#]|$)/,
@@ -178,7 +178,6 @@ const PLATFORMS = [
     // поэтому гейт — весь домен минус корень.
     id: "ktalk",
     optional: true,
-    verified: false,
     title: "Контур.Толк",
     titleEn: "Kontur Talk",
     match: ["https://*.ktalk.ru/*"],
@@ -192,7 +191,6 @@ const PLATFORMS = [
     // Историческое имя платформы — webinar.ru, ссылки встречаются до сих пор.
     id: "mtslink",
     optional: true,
-    verified: false,
     title: "МТС Линк",
     titleEn: "MTS Link",
     match: ["https://*.mts-link.ru/*", "https://*.webinar.ru/*"],
@@ -204,7 +202,6 @@ const PLATFORMS = [
     // старый, с маршрутом в хэше, поэтому у него путь как раз пустой.
     id: "jazz",
     optional: true,
-    verified: false,
     title: "СБЕР Джаз",
     titleEn: "SBER Jazz",
     match: ["https://jazz.sber.ru/*"],
@@ -215,7 +212,6 @@ const PLATFORMS = [
     // 8x8.vc — тот же Jitsi как услуга.
     id: "jitsi",
     optional: true,
-    verified: false,
     title: "Jitsi Meet",
     match: ["https://meet.jit.si/*", "https://8x8.vc/*"],
     test: /^https:\/\/(meet\.jit\.si|8x8\.vc)\/[^/?#]/,
@@ -228,7 +224,6 @@ const PLATFORMS = [
     // поддомены. Новый раздел маркетинга гейт пропустит — известная цена.
     id: "whereby",
     optional: true,
-    verified: false,
     title: "Whereby",
     match: ["https://*.whereby.com/*"],
     test: /^https:\/\/(?!(docs|status|api)\.)([\w-]+\.)*whereby\.com\/(?!(information|user|blog|careers|sitemap\.xml)([/?#]|$))[^/?#]/,
@@ -240,7 +235,6 @@ const PLATFORMS = [
     // его не трогаем.
     id: "chime",
     optional: true,
-    verified: false,
     title: "Amazon Chime",
     match: ["https://app.chime.aws/*"],
     test: /^https:\/\/app\.chime\.aws\/meetings\/[^/?#]/,
@@ -262,7 +256,6 @@ const PLATFORMS = [
     optional: true,
     handoff: true,
     group: "apps",
-    verified: false,
     title: "Telegram",
     match: ["https://t.me/*"],
     test: /^https:\/\/t\.me\/(?!s\/)[^/?#]/,
@@ -280,7 +273,6 @@ const PLATFORMS = [
     id: "gcloud",
     optional: true,
     group: "cli",
-    verified: false,
     title: "Google Cloud CLI",
     match: ["https://docs.cloud.google.com/sdk/auth_success*"],
     test: /^https:\/\/docs\.cloud\.google\.com\/sdk\/auth_success([/?#]|$)/,
@@ -290,7 +282,6 @@ const PLATFORMS = [
     id: "wrangler",
     optional: true,
     group: "cli",
-    verified: false,
     title: "Cloudflare Wrangler",
     match: ["https://welcome.developers.workers.dev/wrangler-oauth-consent-granted*"],
     test: /^https:\/\/welcome\.developers\.workers\.dev\/wrangler-oauth-consent-granted([/?#]|$)/,
@@ -303,7 +294,6 @@ const PLATFORMS = [
     id: "claude-code",
     optional: true,
     group: "cli",
-    verified: false,
     title: "Claude Code",
     match: ["https://platform.claude.com/oauth/code/success*"],
     test: /^https:\/\/platform\.claude\.com\/oauth\/code\/success([/?#]|$)/,
@@ -319,7 +309,17 @@ const REQUIRED_MATCHES = PLATFORMS.filter((p) => !p.optional).flatMap((p) => p.m
 const OPTIONAL_MATCHES = PLATFORMS.filter((p) => p.optional).flatMap((p) => p.match);
 const ALL_MATCHES = [...REQUIRED_MATCHES, ...OPTIONAL_MATCHES];
 
+// ── Задержка перед закрытием ──────────────────────────────────────────────
+// Меньше 30 секунд аларм в упакованном расширении всё равно не сработает:
+// браузер откладывает его до 30 с (у распакованного ограничения нет, поэтому
+// в разработке этого не видно). Меньшую задержку не обещаем и не принимаем —
+// в том числе сохранённую старой версией, где был вариант «15 секунд».
+const DEFAULT_DELAY_SECONDS = 30;
+const MIN_DELAY_SECONDS = 30;
+const effectiveDelay = (raw) =>
+  Math.max(MIN_DELAY_SECONDS, Number(raw) > 0 ? Number(raw) : DEFAULT_DELAY_SECONDS);
+
 // Общий для service worker (importScripts) и страницы настроек (<script>).
 if (typeof self !== "undefined") {
-  Object.assign(self, { PLATFORMS, REQUIRED_MATCHES, OPTIONAL_MATCHES, ALL_MATCHES });
+  Object.assign(self, { PLATFORMS, REQUIRED_MATCHES, OPTIONAL_MATCHES, ALL_MATCHES, effectiveDelay });
 }

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Настройки</title>
+<title data-i18n="optionsTitle">Meeting Tab Cleaner</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b5bdb'/%3E%3Crect x='7' y='11' width='12' height='10' rx='2.5' fill='%23fff'/%3E%3Cpath d='M21 14.2l4-2.4v8.4l-4-2.4z' fill='%23fff'/%3E%3Ccircle cx='23' cy='23' r='6' fill='%23fff'/%3E%3Cpath d='M20.9 20.9l4.2 4.2M25.1 20.9l-4.2 4.2' stroke='%23e03131' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -48,17 +48,16 @@
   }
   label.row input { margin: 0; width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
   .title { flex: 1; }
+  /* Метка «нужен доступ» у платформы, на сайт которой доступ ещё не выдан. */
   .badge {
     font-size: 11px;
     line-height: 18px;
     padding: 0 8px;
     border-radius: 9px;
-    color: var(--ink-soft);
-    background: #f2f4f6;
+    color: #8a5a00;
+    background: #fdf3e2;
     white-space: nowrap;
   }
-  .badge.ok { color: #1a6b3c; background: #e6f4ec; }
-  .badge.ask { color: #8a5a00; background: #fdf3e2; }
 
   .delay { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   select {
@@ -89,54 +88,55 @@
   .count { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
   #saved { opacity: 0; transition: opacity .15s; font-size: 13px; }
   #saved.on { opacity: 1; }
-  #error { color: var(--warn); margin: 10px 0 0; display: none; }
-  #error.on { display: block; }
+  /* Отказ в доступе — прямо под той галочкой, которую нажали. */
+  .row-error { margin: -5px 0 11px 29px; color: var(--warn); }
 </style>
 </head>
 <body>
-  <h1 id="t-title"></h1>
-  <p class="lede" id="t-subtitle"></p>
+  <h1 data-i18n="optionsTitle"></h1>
+  <p class="lede" data-i18n="optionsSubtitle"></p>
 
   <section>
-    <h2 id="t-group-ready"></h2>
-    <p class="hint" id="t-group-ready-hint"></p>
+    <h2 data-i18n="optionsGroupReady"></h2>
+    <p class="hint" data-i18n="optionsGroupReadyHint"></p>
     <ul id="ready"></ul>
   </section>
 
   <section>
-    <h2 id="t-group-optional"></h2>
-    <p class="hint" id="t-group-optional-hint"></p>
+    <h2 data-i18n="optionsGroupOptional"></h2>
+    <p class="hint" data-i18n="optionsGroupOptionalHint"></p>
     <ul id="optional"></ul>
-  </section>
-  <section>
-    <h2 id="t-group-apps"></h2>
-    <p class="hint" id="t-group-apps-hint"></p>
-    <ul id="apps"></ul>
-  </section>
-  <section>
-    <h2 id="t-group-cli"></h2>
-    <p class="hint" id="t-group-cli-hint"></p>
-    <ul id="cli"></ul>
-    <p id="error"></p>
   </section>
 
   <section>
-    <h2 id="t-delay-head"></h2>
+    <h2 data-i18n="optionsGroupApps"></h2>
+    <p class="hint" data-i18n="optionsGroupAppsHint"></p>
+    <ul id="apps"></ul>
+  </section>
+
+  <section>
+    <h2 data-i18n="optionsGroupCli"></h2>
+    <p class="hint" data-i18n="optionsGroupCliHint"></p>
+    <ul id="cli"></ul>
+  </section>
+
+  <section>
+    <h2 data-i18n="optionsDelayHeading"></h2>
     <div class="delay">
-      <label for="delay" id="t-delay"></label>
+      <label for="delay" data-i18n="optionsDelay"></label>
       <select id="delay">
         <option value="30">30</option>
         <option value="60">60</option>
         <option value="120">120</option>
       </select>
-      <span id="t-seconds"></span>
+      <span data-i18n="optionsSeconds"></span>
     </div>
-    <p class="note" id="t-safety"></p>
+    <p class="note" data-i18n="optionsSafety"></p>
   </section>
 
   <div class="foot">
-    <span><span id="t-stats"></span> <span class="count" id="closed">0</span></span>
-    <span id="saved"></span>
+    <span><span data-i18n="optionsStats"></span> <span class="count" id="closed">0</span></span>
+    <span id="saved" data-i18n="optionsSaved"></span>
   </div>
 
   <script src="platforms.js"></script>

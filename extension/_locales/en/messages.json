@@ -1,4 +1,8 @@
 {
+  "locale": {
+    "message": "en",
+    "description": "Code of this locale: the options page uses it for lang and for the spelling of platform names"
+  },
   "extName": {
     "message": "Meeting Tab Cleaner",
     "description": "Extension name"
@@ -19,6 +23,10 @@
     "message": "The meeting ended or moved to the desktop app, and the tab stayed behind. This extension closes it for you, and can do the same for Telegram links and CLI sign-in pages.",
     "description": "Options page subheading"
   },
+  "optionsDelayHeading": {
+    "message": "Delay",
+    "description": "Heading of the delay section"
+  },
   "optionsDelay": {
     "message": "Close after",
     "description": "Label for the delay selector"
@@ -34,14 +42,6 @@
   "optionsStats": {
     "message": "Tabs closed:",
     "description": "Counter label"
-  },
-  "optionsVerified": {
-    "message": "verified on live calls",
-    "description": "Badge for a live-verified platform"
-  },
-  "optionsUnverified": {
-    "message": "from documentation",
-    "description": "Badge for a platform mapped from documentation only"
   },
   "optionsSaved": {
     "message": "Saved",

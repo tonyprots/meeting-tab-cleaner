@@ -7,35 +7,17 @@
 // верить нельзя — источник правды это chrome.permissions, и галочка
 // отражает именно его.
 
-const DEFAULT_DELAY = 30;
 const t = (key) => chrome.i18n.getMessage(key);
-// Названия платформ живут в реестре по-русски; для любой другой локали
-// браузера берём латинское имя, если оно там задано (Телемост, Толк,
-// МТС Линк, Джаз), — иначе английский пользователь видит кириллицу.
-const isRu = chrome.i18n.getUILanguage().toLowerCase().startsWith("ru");
-const platformTitle = (p) => (isRu ? p.title : p.titleEn ?? p.title);
 
-for (const [id, key] of [
-  ["t-title", "optionsTitle"],
-  ["t-subtitle", "optionsSubtitle"],
-  ["t-group-ready", "optionsGroupReady"],
-  ["t-group-ready-hint", "optionsGroupReadyHint"],
-  ["t-group-optional", "optionsGroupOptional"],
-  ["t-group-optional-hint", "optionsGroupOptionalHint"],
-  ["t-group-apps", "optionsGroupApps"],
-  ["t-group-apps-hint", "optionsGroupAppsHint"],
-  ["t-group-cli", "optionsGroupCli"],
-  ["t-group-cli-hint", "optionsGroupCliHint"],
-  ["t-delay-head", "optionsDelay"],
-  ["t-delay", "optionsDelay"],
-  ["t-seconds", "optionsSeconds"],
-  ["t-safety", "optionsSafety"],
-  ["t-stats", "optionsStats"],
-  ["saved", "optionsSaved"],
-  ["error", "optionsPermissionDenied"],
-]) {
-  document.getElementById(id).textContent = t(key);
-}
+// Код локали, из которой браузер взял строки: своя у пользователя есть
+// только для ru и en, остальные получают английскую (default_locale). По нему
+// же пишутся названия платформ — кириллицей только в русской локали, иначе
+// англоязычный интерфейс пестрел бы «Телемостом» и «Толком».
+const locale = t("locale") || "en";
+const platformTitle = (p) => (locale === "ru" ? p.title : p.titleEn ?? p.title);
+
+document.documentElement.lang = locale;
+for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
 
 // Встречи группируем по тому, нужен ли платформе отдельный доступ;
 // мессенджеры и вход в CLI — отдельными разделами (`group` в реестре),
@@ -46,7 +28,10 @@ const lists = Object.fromEntries(
 const listFor = (platform) => platform.group ?? (platform.optional ? "optional" : "ready");
 const delaySelect = document.getElementById("delay");
 const savedTag = document.getElementById("saved");
-const errorTag = document.getElementById("error");
+
+// Платформа, доступ к сайту которой только что не выдали: сообщение об этом
+// показываем под её галочкой, а не в конце страницы.
+let denied = null;
 
 let savedTimer;
 function flashSaved() {
@@ -60,17 +45,24 @@ const hasPermission = (platform) =>
     ? chrome.permissions.contains({ origins: platform.match })
     : Promise.resolve(true);
 
-async function setEnabled(id, value) {
-  const { enabled = {} } = await chrome.storage.sync.get("enabled");
-  await chrome.storage.sync.set({ enabled: { ...enabled, [id]: value } });
-  flashSaved();
+// Флажки платформ лежат одним объектом, и запись — это read-modify-write.
+// Две галочки, нажатые подряд быстрее, чем отвечает storage, иначе прочли бы
+// одно и то же и вторая затёрла бы первую. Пишем строго по очереди.
+let saving = Promise.resolve();
+function setEnabled(id, value) {
+  saving = saving.catch(() => {}).then(async () => {
+    const { enabled = {} } = await chrome.storage.sync.get("enabled");
+    await chrome.storage.sync.set({ enabled: { ...enabled, [id]: value } });
+    flashSaved();
+  });
+  return saving;
 }
 
 // Запрос разрешения обязан идти прямо из обработчика клика, иначе браузер
 // сочтёт его не пользовательским и молча откажет. Поэтому здесь никаких
 // await до самого chrome.permissions.request.
 async function onToggle(platform, box) {
-  errorTag.classList.remove("on");
+  denied = null;
 
   if (!platform.optional) {
     await setEnabled(platform.id, box.checked);
@@ -84,8 +76,7 @@ async function onToggle(platform, box) {
       .request({ origins: platform.match })
       .catch(() => false);
     if (!granted) {
-      box.checked = false;
-      errorTag.classList.add("on");
+      denied = platform.id;
       return;
     }
     await setEnabled(platform.id, true);
@@ -95,51 +86,60 @@ async function onToggle(platform, box) {
   }
 }
 
-function badgeFor(platform, granted) {
-  const badge = document.createElement("span");
-  if (platform.optional && !granted) {
-    badge.className = "badge ask";
+function rowFor(platform, checked, granted) {
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.dataset.id = platform.id;
+  box.checked = checked;
+  box.addEventListener("change", () => onToggle(platform, box).then(render));
+
+  const title = document.createElement("span");
+  title.className = "title";
+  title.textContent = platformTitle(platform);
+
+  const label = document.createElement("label");
+  label.className = "row";
+  label.append(box, title);
+  if (!granted) {
+    const badge = document.createElement("span");
+    badge.className = "badge";
     badge.textContent = t("optionsNeedsPermission");
-  } else {
-    badge.className = platform.verified ? "badge ok" : "badge";
-    badge.textContent = t(platform.verified ? "optionsVerified" : "optionsUnverified");
+    label.append(badge);
   }
-  return badge;
+
+  const li = document.createElement("li");
+  li.append(label);
+  if (denied === platform.id) {
+    const error = document.createElement("p");
+    error.className = "row-error";
+    error.setAttribute("role", "alert");
+    error.textContent = t("optionsPermissionDenied");
+    li.append(error);
+  }
+  return li;
 }
 
 async function render() {
-  const { enabled = {}, delaySeconds } = await chrome.storage.sync.get([
-    "enabled",
-    "delaySeconds",
+  const [{ enabled = {}, delaySeconds }, { closed = 0 }, granted] = await Promise.all([
+    chrome.storage.sync.get(["enabled", "delaySeconds"]),
+    chrome.storage.local.get("closed"),
+    Promise.all(PLATFORMS.map(hasPermission)),
   ]);
-  const { closed = 0 } = await chrome.storage.local.get("closed");
+
+  // Список перерисовывается целиком, и нажатая галочка — новый элемент.
+  // Возвращаем на неё фокус, иначе с клавиатуры после каждого нажатия
+  // приходилось бы начинать обход страницы заново.
+  const focused = document.activeElement?.dataset.id;
 
   const rows = Object.fromEntries(Object.keys(lists).map((id) => [id, []]));
-  for (const platform of PLATFORMS) {
-    const granted = await hasPermission(platform);
-
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.dataset.id = platform.id;
-    box.checked = (enabled[platform.id] ?? platform.defaultOn) && granted;
-    box.addEventListener("change", () => onToggle(platform, box).then(render));
-
-    const title = document.createElement("span");
-    title.className = "title";
-    title.textContent = platformTitle(platform);
-
-    const label = document.createElement("label");
-    label.className = "row";
-    label.append(box, title, badgeFor(platform, granted));
-
-    const li = document.createElement("li");
-    li.append(label);
-    rows[listFor(platform)].push(li);
-  }
-
+  PLATFORMS.forEach((platform, i) => {
+    const checked = (enabled[platform.id] ?? platform.defaultOn) && granted[i];
+    rows[listFor(platform)].push(rowFor(platform, checked, granted[i]));
+  });
   for (const [id, list] of Object.entries(lists)) list.replaceChildren(...rows[id]);
+  if (focused) document.querySelector(`input[data-id="${focused}"]`)?.focus();
 
-  delaySelect.value = String(delaySeconds || DEFAULT_DELAY);
+  delaySelect.value = String(effectiveDelay(delaySeconds));
   document.getElementById("closed").textContent = String(closed);
 }
 

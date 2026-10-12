@@ -120,7 +120,12 @@ const chrome = {
     onRemoved: on(listeners.permRemoved),
   },
   scripting: {
-    registerContentScripts: async (scripts) => { registered.push(...scripts); },
+    registerContentScripts: async (scripts) => {
+      // как в браузере: зарегистрировать занятый id — ошибка
+      const dup = scripts.find((s) => registered.some((r) => r.id === s.id));
+      if (dup) throw new Error(`Duplicate script ID '${dup.id}'`);
+      registered.push(...scripts);
+    },
     unregisterContentScripts: async () => {
       if (!registered.length) throw new Error("no registered scripts");
       registered.length = 0;
@@ -406,6 +411,32 @@ check(
   !(manifest.permissions ?? []).includes("tabs"),
   "манифест: широкого разрешения tabs нет (только host-разрешения)",
 );
+// Браузер берёт строки из локали интерфейса, а если её нет — из
+// default_locale. При "ru" немец или француз видел бы расширение целиком
+// по-русски: имя, карточку, настройки.
+const locales = Object.fromEntries(
+  ["en", "ru"].map((l) => [l, JSON.parse(read(`extension/_locales/${l}/messages.json`))]),
+);
+check(manifest.default_locale === "en", `локали: по умолчанию английская (${manifest.default_locale})`);
+check(
+  sameSet(Object.keys(locales.en), Object.keys(locales.ru)),
+  "локали: в en и ru одни и те же ключи",
+);
+// По этому коду страница настроек ставит lang и выбирает, как писать
+// названия платформ, — в той же локали, из которой пришли остальные строки.
+check(
+  locales.en.locale?.message === "en" && locales.ru.locale?.message === "ru",
+  "локали: каждая знает свой код",
+);
+const usedKeys = [
+  ...read("extension/options.html").matchAll(/data-i18n="([^"]+)"/g),
+  ...read("extension/options.js").matchAll(/\bt\("([^"]+)"\)/g),
+].map((m) => m[1]);
+check(
+  usedKeys.length > 10 && usedKeys.every((k) => k in locales.en),
+  `локали: все ${usedKeys.length} ключей страницы настроек есть в словаре`,
+);
+
 // world: "MAIN" в статических content_scripts понимает Chrome 111+; на более
 // старом браузере расширение установилось бы и молча работало без датчика.
 check(
@@ -746,6 +777,33 @@ await chrome.permissions.remove({ origins: meetPlatform.match });
 await emit(listeners.permRemoved, { origins: meetPlatform.match, permissions: [] });
 await settle();
 check(registered.length === 0, "23g: доступ отозвали — регистрации сняты");
+
+// Два события о доступе разом: выдали две платформы, сняли две галочки
+// подряд, доступ пришёл во время обновления. Пересинхронизация — это «снять
+// всё и зарегистрировать заново», и без очереди две такие переплетаются:
+// вторая падает на занятом id (в браузере — «Duplicate script ID»), а вкладки
+// после неё не пересматриваются.
+await reset();
+await setSync({ enabled: { meet: true, jitsi: true } });
+windows.set(1, { focused: false });
+const jitsiPlatform = PLATFORMS.find((p) => p.id === "jitsi");
+const both = [meetPlatform, jitsiPlatform];
+tab(232, MEET);
+for (const p of both) await chrome.permissions.request({ origins: p.match });
+const raced = await Promise.allSettled(
+  both.map((p) => emit(listeners.permAdded, { origins: p.match, permissions: [] })),
+);
+await settle();
+check(
+  raced.every((r) => r.status === "fulfilled"),
+  `23h: два события о доступе разом не роняют обработчик (${raced.map((r) => r.reason?.message ?? "ok").join(", ")})`,
+);
+check(
+  registered.length === 2 &&
+    registered.every((s) => both.every((p) => p.match.every((m) => s.matches.includes(m)))),
+  "23i: после гонки оба скрипта зарегистрированы ровно раз и покрывают оба домена",
+);
+check(alarms.has("close:232"), "23j: и открытые вкладки после неё пересмотрены");
 
 // --- 24: установка/обновление расширения при открытых вкладках ---
 // Content scripts браузер ставит только в страницы, загруженные после

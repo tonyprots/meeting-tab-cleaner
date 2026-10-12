@@ -1,4 +1,4 @@
-// Чистильщик хвостовых вкладок.
+// Уборка хвостовых вкладок.
 //
 // Закрывает вкладки, которые передали действие приложению или отработали
 // своё: страницы-посредники, отдавшие звонок или чат десктопному приложению,
@@ -27,15 +27,7 @@ const ALARM_PREFIX = "close:";
 const TICK_ALARM = "tick";
 const TICK_MINUTES = 0.5;
 
-// Меньше 30 секунд аларм в упакованном расширении всё равно не сработает:
-// браузер откладывает его до 30 с (у распакованного ограничения нет, поэтому
-// в разработке этого не видно). Меньшую задержку не обещаем и не принимаем.
-const MIN_DELAY_SECONDS = 30;
-
-const DEFAULTS = {
-  delaySeconds: 30,
-  enabled: Object.fromEntries(PLATFORMS.map((p) => [p.id, p.defaultOn])),
-};
+const DEFAULT_ENABLED = Object.fromEntries(PLATFORMS.map((p) => [p.id, p.defaultOn]));
 
 // Service worker выгружается, поэтому настройки читаются из storage, а не
 // живут в памяти. Кэш — чтобы не дёргать storage на каждое событие фокуса;
@@ -52,10 +44,9 @@ chrome.storage.onChanged.addListener((_changes, area) => {
 async function settings() {
   if (cache) return cache;
   const raw = await chrome.storage.sync.get(["delaySeconds", "enabled"]);
-  const delay = Number(raw.delaySeconds);
   cache = {
-    delaySeconds: Math.max(MIN_DELAY_SECONDS, delay > 0 ? delay : DEFAULTS.delaySeconds),
-    enabled: { ...DEFAULTS.enabled, ...(raw.enabled ?? {}) },
+    delaySeconds: effectiveDelay(raw.delaySeconds),
+    enabled: { ...DEFAULT_ENABLED, ...(raw.enabled ?? {}) },
   };
   return cache;
 }
@@ -70,8 +61,17 @@ async function activePlatform(url) {
   return (await settings()).enabled[platform.id] ? platform : null;
 }
 
+// Очередь вызовов внутри одного пробуждения worker'а: следующий начинается,
+// когда закончился предыдущий, даже если тот упал. Нужна везде, где
+// обработчик делает read-modify-write чужого состояния, а события приходят
+// пачкой.
+function serial(fn) {
+  let tail = Promise.resolve();
+  return (...args) => (tail = tail.catch(() => {}).then(() => fn(...args)));
+}
+
 // ── Опциональные разрешения ───────────────────────────────────────────────
-// Домены платформ типа session не просятся при установке: за десяток лишних
+// Домены платформ с `optional` не просятся при установке: за десяток лишних
 // сайтов в предупреждении платили бы все, а нужны они немногим. Пользователь
 // выдаёт их галочкой в настройках, и только тогда мы регистрируем на них
 // скрипты. Статически объявить их в манифесте нельзя — браузер не станет
@@ -79,15 +79,20 @@ async function activePlatform(url) {
 
 const DYNAMIC_IDS = ["optional-content", "optional-rtc-probe"];
 
-async function syncOptionalScripts() {
+// Снимаем всегда и регистрируем заново: разбираться, какие из двух
+// регистраций уже есть, дороже, чем просто пересоздать их. Зато вызовы
+// обязаны идти строго по очереди. Две пересинхронизации разом (выключили
+// две платформы подряд, выдали доступ во время обновления) переплетаются:
+// обе снимают, обе регистрируют, и вторая падает на «Duplicate script ID» —
+// проверено в браузере. А первая к тому же могла зарегистрировать список
+// доменов, устаревший к моменту записи.
+const syncOptionalScripts = serial(async () => {
   const granted = [];
   for (const p of PLATFORMS) {
     if (!p.optional) continue;
     if (await chrome.permissions.contains({ origins: p.match })) granted.push(...p.match);
   }
 
-  // Снимаем всегда и регистрируем заново: разбираться, какие из двух
-  // регистраций уже есть, дороже, чем просто пересоздать их.
   try {
     await chrome.scripting.unregisterContentScripts({ ids: DYNAMIC_IDS });
   } catch {
@@ -112,7 +117,7 @@ async function syncOptionalScripts() {
       world: "MAIN",
     },
   ]);
-}
+});
 
 // Content scripts — и статические, и зарегистрированные — попадают только
 // в страницы, загруженные ПОСЛЕ регистрации. Вкладки, открытые до установки
@@ -133,12 +138,17 @@ async function injectIntoOpenTabs(matches) {
   );
 }
 
-chrome.permissions.onAdded.addListener((granted) =>
-  syncOptionalScripts()
-    .then(() => injectIntoOpenTabs(granted?.origins ?? []))
-    .then(reconcileAll),
-);
-chrome.permissions.onRemoved.addListener(() => syncOptionalScripts().then(reconcileAll));
+// Пересобрать регистрации, при необходимости внедрить скрипты в уже открытые
+// вкладки и пересмотреть кандидатов. Сбой регистрации не отменяет остального:
+// вкладки пересматриваются в любом случае.
+async function refresh(injectInto = []) {
+  await syncOptionalScripts().catch((e) => console.error("регистрация скриптов:", e));
+  await injectIntoOpenTabs(injectInto);
+  await reconcileAll();
+}
+
+chrome.permissions.onAdded.addListener((granted) => refresh(granted?.origins ?? []));
+chrome.permissions.onRemoved.addListener(() => refresh());
 
 // ── Таймеры ───────────────────────────────────────────────────────────────
 
@@ -148,7 +158,7 @@ function clearAlarm(tabId) {
 
 async function schedule(name) {
   const { delaySeconds } = await settings();
-  chrome.alarms.create(name, { when: Date.now() + delaySeconds * 1000 });
+  await chrome.alarms.create(name, { when: Date.now() + delaySeconds * 1000 });
 }
 
 // Взводит отсчёт, если он ещё не идёт. Существующий аларм не трогаем,
@@ -165,7 +175,7 @@ async function armAlarm(tabId) {
 async function setTick(needed) {
   const exists = !!(await chrome.alarms.get(TICK_ALARM));
   if (needed && !exists) {
-    chrome.alarms.create(TICK_ALARM, { periodInMinutes: TICK_MINUTES });
+    await chrome.alarms.create(TICK_ALARM, { periodInMinutes: TICK_MINUTES });
   } else if (!needed && exists) {
     await chrome.alarms.clear(TICK_ALARM);
   }
@@ -197,23 +207,7 @@ async function askPage(tabId) {
 // в приложении» лежит содержимое. Такая вкладка становится кандидатом, только
 // когда страница сама сказала, что передала действие приложению. Нет ответа —
 // не кандидат: молчание разрешением закрыть не считается.
-const handedOff = async (tabId, platform) =>
-  !platform.handoff || (await askPage(tabId))?.handedOff === true;
-
-// Инкремент через storage — это read-modify-write, а закрываются вкладки
-// пачкой: алармы нескольких хвостов срабатывают в один тик, все читают
-// одно и то же значение и записывают одно и то же. Счётчик недосчитывал.
-// Выстраиваем вызовы в очередь: внутри одного пробуждения worker'а этого
-// достаточно, а между пробуждениями одновременных закрытий не бывает.
-let counting = Promise.resolve();
-
-function countClosed() {
-  counting = counting.then(async () => {
-    const { closed = 0 } = await chrome.storage.local.get("closed");
-    await chrome.storage.local.set({ closed: closed + 1 });
-  });
-  return counting;
-}
+const handedOff = (platform, page) => !platform.handoff || page?.handedOff === true;
 
 // Страница занята: человек на неё смотрит или в ней идёт звонок.
 // Молчание страницы занятостью НЕ считается — content script мог не
@@ -221,36 +215,40 @@ function countClosed() {
 // по данным браузера, ровно как это делала первая версия.
 const busy = (state) => state?.watched === true || state?.busy === true;
 
-async function reconcile(tab) {
-  if (tab.id === undefined) return;
+// Инкремент через storage — это read-modify-write, а закрываются вкладки
+// пачкой: алармы нескольких хвостов срабатывают в один тик, все читают
+// одно и то же значение и записывают одно и то же. Счётчик недосчитывал.
+// Очереди внутри одного пробуждения worker'а достаточно: между
+// пробуждениями одновременных закрытий не бывает.
+const countClosed = serial(async () => {
+  const { closed = 0 } = await chrome.storage.local.get("closed");
+  await chrome.storage.local.set({ closed: closed + 1 });
+});
+
+// Приводит аларм одной вкладки в правильное состояние и отвечает, кандидат
+// ли она. Тик здесь не трогаем — им распоряжаются вызывающие.
+async function reconcileTab(tab) {
+  if (tab.id === undefined) return false;
   const platform = await activePlatform(tab.url);
-  if (!platform || !(await handedOff(tab.id, platform))) {
+  const page = platform?.handoff ? await askPage(tab.id) : undefined;
+  if (!platform || !handedOff(platform, page)) {
     await clearAlarm(tab.id);
-    return;
+    return false;
   }
-  await setTick(true);
+  // Вкладка на глазах — пауза: отсчёт перевзведётся, когда пользователь
+  // уйдёт (onActivated / onFocusChanged / сообщение от страницы).
+  await ((await isForeground(tab)) ? clearAlarm(tab.id) : armAlarm(tab.id));
+  return true;
+}
 
-  if (await isForeground(tab)) {
-    // Пауза: отсчёт перевзведётся, когда пользователь уйдёт с вкладки
-    // (onActivated / onFocusChanged / сообщение от страницы).
-    await clearAlarm(tab.id);
-    return;
-  }
-
-  await armAlarm(tab.id);
+async function reconcile(tab) {
+  if (await reconcileTab(tab)) await setTick(true);
 }
 
 async function reconcileAll() {
   const tabs = await chrome.tabs.query({ url: ALL_MATCHES });
-  const live = [];
-  const idle = [];
-  for (const tab of tabs) {
-    const platform = await activePlatform(tab.url);
-    (platform && (await handedOff(tab.id, platform)) ? live : idle).push(tab);
-  }
-  await setTick(live.length > 0);
-  await Promise.all(idle.map((tab) => clearAlarm(tab.id)));
-  await Promise.all(live.map(reconcile));
+  const candidates = await Promise.all(tabs.map(reconcileTab));
+  await setTick(candidates.includes(true));
 }
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -290,7 +288,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   // звонок. Живое WebRTC-соединение или играющий медиаэлемент — оба признака
   // работают и там, где tab.audible молчит, потому что в комнате тишина.
   const page = await askPage(tabId);
-  if (platform.handoff && page?.handedOff !== true) return; // не кандидат
+  if (!handedOff(platform, page)) return; // не кандидат
   if (busy(page)) {
     await schedule(alarm.name);
     return;
@@ -319,7 +317,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 async function onPageReport(tabId, url, state) {
   const platform = await activePlatform(url);
   if (!platform) return;
-  if (busy(state) || (platform.handoff && !state.handedOff)) {
+  if (busy(state) || !handedOff(platform, state)) {
     await clearAlarm(tabId);
   } else {
     await setTick(true);
@@ -327,7 +325,7 @@ async function onPageReport(tabId, url, state) {
   }
 }
 
-chrome.tabs.onCreated.addListener((tab) => reconcile(tab));
+chrome.tabs.onCreated.addListener(reconcile);
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url !== undefined) reconcile(tab);
 });
@@ -346,10 +344,9 @@ chrome.windows.onFocusChanged.addListener(() => reconcileAll());
 // расширения: подхватить уже открытые хвосты и восстановить регистрации.
 // При установке и обновлении ещё и внедрить скрипты в открытые вкладки:
 // после обновления старые content scripts мертвы (их runtime отозван),
-// а новые браузер сам в живые страницы не ставит.
-chrome.runtime.onStartup.addListener(() => syncOptionalScripts().then(reconcileAll));
-chrome.runtime.onInstalled.addListener((details) =>
-  syncOptionalScripts()
-    .then(() => injectIntoOpenTabs(details?.reason === "install" || details?.reason === "update" ? ALL_MATCHES : []))
-    .then(reconcileAll),
+// а новые браузер сам в живые страницы не ставит. Что новый скрипт в такой
+// вкладке действительно оживает, проверено в браузере (2026-10-12).
+chrome.runtime.onStartup.addListener(() => refresh());
+chrome.runtime.onInstalled.addListener(({ reason } = {}) =>
+  refresh(reason === "install" || reason === "update" ? ALL_MATCHES : []),
 );

@@ -1,4 +1,4 @@
-# Чистильщик вкладок видеовстреч
+# Уборка вкладок звонков
 
 Для тех, кто заходит на встречи по ссылкам из календаря: расширение для
 браузеров на Chromium закрывает вкладку видеовстречи через 30 секунд после
@@ -51,25 +51,24 @@
 включаются галочкой в настройках, и только тогда браузер спросит доступ
 к их сайту.
 
-| Сервис | Включён | Проверен |
-|---|---|---|
-| Яндекс Телемост | сразу | вживую |
-| Zoom | сразу | по документации |
-| Microsoft Teams (встречи и чаты) | сразу | по документации |
-| Cisco Webex | сразу | по документации |
-| GoTo Meeting | сразу | по документации |
-| Google Meet | галочкой | по документации |
-| Контур.Толк | галочкой | по документации |
-| МТС Линк | галочкой | по документации |
-| СБЕР Джаз | галочкой | по документации |
-| Jitsi Meet | галочкой | по документации |
-| Whereby | галочкой | по документации |
-| Amazon Chime | галочкой | по документации |
-| Telegram (после «Открыть в Telegram») | галочкой | по документации |
-| Вход в Google Cloud CLI, Cloudflare Wrangler, Claude Code | галочкой | по документации |
+| Сервис | Включён |
+|---|---|
+| Яндекс Телемост | сразу |
+| Zoom | сразу |
+| Microsoft Teams (встречи и чаты) | сразу |
+| Cisco Webex | сразу |
+| GoTo Meeting | сразу |
+| Google Meet | галочкой |
+| Контур.Толк | галочкой |
+| МТС Линк | галочкой |
+| СБЕР Джаз | галочкой |
+| Jitsi Meet | галочкой |
+| Whereby | галочкой |
+| Amazon Chime | галочкой |
+| Telegram (после «Открыть в Telegram») | галочкой |
+| Вход в Google Cloud CLI, Cloudflare Wrangler, Claude Code | галочкой |
 
-«По документации» значит: адреса проверены по документации сервиса и
-редиректам, но настоящей встречи с расширением ещё не было. Провели такую —
+Вкладка повела себя не так, как обещано, —
 [расскажите](https://github.com/tonyprots/meeting-tab-cleaner/issues/new?template=platform-verified.yml),
 это самая полезная помощь проекту.
 
@@ -77,8 +76,8 @@
 
 Страница настроек (`chrome://extensions` → карточка → «Настройки расширения»):
 переключатель на каждую платформу, задержка 30, 60 или 120 секунд, счётчик
-закрытых вкладок. У каждой платформы помечено, проверена ли она на живых
-звонках.
+закрытых вкладок. Интерфейс на русском и английском, в остальных локалях
+браузера — на английском.
 
 ## Приватность
 
@@ -97,8 +96,8 @@ grep -rnE "fetch\(|XMLHttpRequest|WebSocket|sendBeacon" extension/
 
 ## Помочь проекту
 
-Проверенная вживую платформа, найденная вкладка, которая не закрылась, или
-новый сервис — всё это в [CONTRIBUTING.md](CONTRIBUTING.md), там же тесты и
+Отчёт с настоящей встречи, вкладка, которая не закрылась, или новый
+сервис — всё это в [CONTRIBUTING.md](CONTRIBUTING.md), там же тесты и
 сборка из исходников. Уязвимость — по [SECURITY.md](SECURITY.md), не в
 открытом issue. История версий — [CHANGELOG.md](CHANGELOG.md).
 
@@ -116,10 +115,11 @@ the chosen delay and trips none of the guards (live WebRTC connection,
 playing media, captured camera or microphone, audio, pinned) is closed.
 Twelve meeting services (Yandex Telemost, Zoom, Teams, Webex, GoTo, Google
 Meet, Kontur Talk, MTS Link, SBER Jazz, Jitsi, Whereby, Chime), plus optional
-Telegram hand-off pages and CLI sign-in pages. Only Telemost has been verified
-on live calls so far; if you ran a real meeting on another service, please
+Telegram hand-off pages and CLI sign-in pages. If a tab behaved differently
+than described, please
 [report it](https://github.com/tonyprots/meeting-tab-cleaner/issues/new?template=platform-verified.yml).
-No data collection, no network requests. Install from the
+The interface is in English and Russian; every other browser language gets
+English. No data collection, no network requests. Install from the
 [latest release](https://github.com/tonyprots/meeting-tab-cleaner/releases/latest)
 as an unpacked extension until the Chrome Web Store listing is approved.
 MIT license.

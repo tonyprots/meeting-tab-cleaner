@@ -18,8 +18,8 @@
 //    и флаг DisableLoadExtensionCommandLineSwitch): расширение просто молча
 //    не грузится, и в профиле пусто. Поэтому первым в списке Яндекс Браузер —
 //    он и целевой браузер Антона, и единственный тут, который умеет грузить
-//    распакованное расширение с командной строки. Headless тоже отпадает:
-//    расширения в нём не поднимаются, окно уводим за пределы экрана.
+//    распакованное расширение с командной строки. Новый headless
+//    (--headless=new) расширения поднимает, поэтому окна нет вовсе.
 
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
@@ -83,8 +83,6 @@ const browser = spawn(chromePath, [
   "--no-first-run",
   "--no-default-browser-check",
   "--disable-gpu",
-  // Окно живое, но за пределами экрана: расширения в headless не поднимаются,
-  // а мигать окном посреди работы незачем.
   "--headless=new", // без окна: не отнимать фокус у приложений
   "--window-position=-3000,-3000",
   "--window-size=1000,800",
@@ -162,7 +160,7 @@ try {
   check(!m.description.includes("__MSG_"), "описание подставлено из локали", m.description);
   check(!(m.permissions ?? []).includes("tabs"), "широкого разрешения tabs нет");
 
-  const heading = await evaluate(page, "document.getElementById('t-title').textContent");
+  const heading = await evaluate(page, "document.querySelector('h1').textContent");
   check(heading?.length > 3, `страница настроек отрисовалась: «${heading}»`);
   const rows = await evaluate(
     page, "document.querySelectorAll('li').length");
@@ -175,14 +173,29 @@ try {
   })`);
   check(groups === '{"ready":5,"optional":7,"apps":1,"cli":3}', `сервисы разложены по группам: ${groups}`);
   const asks = await evaluate(
-    page, "document.querySelectorAll('.badge.ask').length");
+    page, "document.querySelectorAll('.badge').length");
   check(asks === 11, `у ${asks} сервисов помечено, что нужен доступ (ожидалось 11)`);
   const hints = await evaluate(
-    page, "['t-group-apps','t-group-apps-hint','t-group-cli','t-group-cli-hint'].every(id => document.getElementById(id).textContent.length > 3)");
-  check(hints === true, "заголовки и пояснения новых разделов подставлены из локали");
+    page, "['optionsGroupApps','optionsGroupAppsHint','optionsGroupCli','optionsGroupCliHint'].every(k => document.querySelector('[data-i18n=' + k + ']').textContent.length > 3)");
+  check(hints === true, "заголовки и пояснения разделов подставлены из локали");
   const badges = await evaluate(
-    page, "[...document.querySelectorAll('.badge')].map(b => b.textContent).join(' | ')");
-  check(badges?.length > 5 && !badges.includes("undefined"), `метки проверки: ${badges}`);
+    page, "[...new Set([...document.querySelectorAll('.badge')].map(b => b.textContent))].join(' | ')");
+  check(badges?.length > 5 && !badges.includes("undefined"), `метки сервисов: ${badges}`);
+  // Язык страницы, её заголовок во вкладке и названия платформ — из той же
+  // локали, что и остальные строки, а не из жёстко прописанного русского.
+  const page18n = JSON.parse(await evaluate(page, `JSON.stringify({
+    lang: document.documentElement.lang,
+    locale: chrome.i18n.getMessage('locale'),
+    title: document.title,
+    heading: document.querySelector('h1').textContent,
+    delayHead: document.querySelector('[data-i18n=optionsDelayHeading]').textContent,
+    delayLabel: document.querySelector('[data-i18n=optionsDelay]').textContent,
+    empty: [...document.querySelectorAll('[data-i18n]')].filter(e => !e.textContent).length,
+  })`));
+  check(page18n.lang === page18n.locale, `lang страницы — локаль строк (${page18n.lang})`);
+  check(page18n.title === page18n.heading, `заголовок вкладки локализован: «${page18n.title}»`);
+  check(page18n.delayHead !== page18n.delayLabel, `заголовок задержки не повторяет подпись: «${page18n.delayHead}» / «${page18n.delayLabel}»`);
+  check(page18n.empty === 0, `все тексты страницы подставлены (пустых: ${page18n.empty})`);
   // Фавиконка обязательна на любой HTML-странице, и мало объявить ссылку —
   // data-URI должен ещё и разворачиваться в валидный SVG.
   const favicon = await evaluate(page, `(async () => {
@@ -264,10 +277,18 @@ try {
   browser.kill("SIGTERM");
   await sleep(400);
   try { browser.kill("SIGKILL"); } catch {}
-  // Профиль убираем только после выхода процесса: пока браузер дописывает
-  // его, rm получает ENOTEMPTY и роняет зелёный прогон на последней строке.
-  await new Promise((r) => { browser.once("exit", r); setTimeout(r, 3000); });
-  fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  // Профиль убираем только после выхода процесса, но и тогда вспомогательные
+  // процессы браузера успевают дописать в него пару файлов — rm получает
+  // ENOTEMPTY. Это временная папка: её остаток не повод ронять зелёный прогон
+  // (а с ним и сборку) на последней строке.
+  if (browser.exitCode === null && browser.signalCode === null) {
+    await new Promise((r) => { browser.once("exit", r); setTimeout(r, 3000); });
+  }
+  try {
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch (e) {
+    console.warn(`временный профиль убран не до конца (${e.code}): ${profile}`);
+  }
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall green");
